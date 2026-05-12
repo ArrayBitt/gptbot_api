@@ -2,7 +2,7 @@
   "functions": [
     {
       "source": "functions/gptbot",
-      "codebase": "default",
+      "codebase": "gptbot",
       "ignore": [
         "node_modules",
         ".git",

@@ -11,6 +11,6 @@
     "resolveJsonModule": true
   },
   "compileOnSave": true,
-  "include": ["gptbot"],
-  "exclude": ["gptbot/api/**/*", "../node_modules"]
+  "include": ["src"],
+  "exclude": ["src/api/**/*", "node_modules"]
 }

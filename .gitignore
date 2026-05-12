@@ -42,10 +42,14 @@ next-env.d.ts
 
 # firebase service account (never commit credentials)
 src/lib/service-account.json
-functions/gptbot/lib/service-account.json
+functions/gptbot/src/lib/service-account.json
 functions/.env
 functions/.env.*
+functions/gptbot/.env
+functions/gptbot/.env.*
 
 # firebase functions compiled output & dependencies
 functions/lib/
 functions/node_modules/
+functions/gptbot/lib/
+functions/gptbot/node_modules/
