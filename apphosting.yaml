@@ -1,0 +1,11 @@
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  concurrency: 80
+
+env:
+  - variable: GOOGLE_SERVICE_ACCOUNT
+    secret: GOOGLE_SERVICE_ACCOUNT
+    availability:
+      - BUILD
+      - RUNTIME
