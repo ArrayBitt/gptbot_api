@@ -1,12 +1,15 @@
 import { onRequest } from "firebase-functions/v2/https"
+import { defineSecret } from "firebase-functions/params"
 import { createSheetsClient } from "./lib/sheets"
 import { getOpenJobs, Job } from "./lib/getOpenJobs"
 import { getCompanySheetId } from "./lib/getCompanySheetId"
+import { getJobList } from "./lib/getJobList"
 
 const CONTROL_CENTER_ID = "1slOgchohy1pNoXKhGhx8FSMl5o6VjkAYkP4vWEby_ng"
+const GOOGLE_SA = defineSecret("GOOGLE_SERVICE_ACCOUNT_B64")
 
 function getSheets() {
-  const b64 = process.env.GOOGLE_SERVICE_ACCOUNT_B64
+  const b64 = GOOGLE_SA.value()
   if (!b64) throw new Error("GOOGLE_SERVICE_ACCOUNT_B64 is not set")
   const raw = Buffer.from(b64, "base64").toString("utf-8")
   return createSheetsClient(raw)
@@ -20,7 +23,7 @@ const corsHeaders = {
 
 // GET /jobs?search=...
 export const jobs = onRequest(
-  { region: "asia-southeast1" },
+  { region: "asia-southeast1", secrets: [GOOGLE_SA] },
   async (req, res) => {
     Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v))
     if (req.method === "OPTIONS") { res.status(204).send(""); return }
@@ -39,7 +42,7 @@ export const jobs = onRequest(
 
 // GET /jobDetail?position_name=...
 export const jobDetail = onRequest(
-  { region: "asia-southeast1" },
+  { region: "asia-southeast1", secrets: [GOOGLE_SA] },
   async (req, res) => {
     Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v))
     if (req.method === "OPTIONS") { res.status(204).send(""); return }
@@ -83,9 +86,70 @@ export const jobDetail = onRequest(
   }
 )
 
+// GET /searchJobsList
+export const searchJobsList = onRequest(
+  { region: "asia-southeast1", secrets: [GOOGLE_SA], timeoutSeconds: 120 },
+  async (req, res) => {
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v))
+    if (req.method === "OPTIONS") { res.status(204).send(""); return }
+
+    try {
+      const sheets = getSheets()
+      const data = await getJobList(sheets)
+      res.json({ success: true, data })
+    } catch (error) {
+      console.error("searchJobsList error:", error)
+      res.status(500).json({ success: false })
+    }
+  }
+)
+
+// GET /searchJobsDetail?position_name=...&company=...
+export const searchJobsDetail = onRequest(
+  { region: "asia-southeast1", secrets: [GOOGLE_SA] },
+  async (req, res) => {
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v))
+    if (req.method === "OPTIONS") { res.status(204).send(""); return }
+
+    const positionName = (req.query.position_name as string)?.trim()
+    const company = (req.query.company as string)?.trim()
+    if (!positionName || !company) {
+      res.status(400).json({ success: false, error: "position_name and company are required" })
+      return
+    }
+
+    try {
+      const sheets = getSheets()
+      const companySheetId = await getCompanySheetId(sheets, company)
+      if (!companySheetId) { res.json({ success: false, error: "company not found" }); return }
+
+      const detail = await sheets.spreadsheets.values.get({
+        spreadsheetId: companySheetId,
+        range: `'${positionName}'!A1:D200`,
+      })
+
+      const formatted: Record<string, string> = {}
+      ;(detail.data.values || []).forEach((row: string[]) => {
+        const key = row[1]; const value = row[2]
+        if (key && value && key !== "รายการ" && !key.includes("SECTION")) {
+          formatted[key] = value
+        }
+      })
+
+      res.json({
+        success: true,
+        data: { position_name: positionName, company, detail: formatted },
+      })
+    } catch (error) {
+      console.error("searchJobsDetail error:", error)
+      res.status(500).json({ success: false })
+    }
+  }
+)
+
 // POST /chat  body: { message: string }
 export const chat = onRequest(
-  { region: "asia-southeast1" },
+  { region: "asia-southeast1", secrets: [GOOGLE_SA] },
   async (req, res) => {
     Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v))
     if (req.method === "OPTIONS") { res.status(204).send(""); return }
