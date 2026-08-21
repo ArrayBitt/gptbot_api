@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSheetsClient } from "@/src/lib/createSheetsClient"
 import { corsHeaders } from "@/src/lib/v2/constants"
 import { searchJobs } from "@/src/lib/v2/searchJobs"
+import { formatJobSearchReply, formatJobSearchResult } from "@/src/lib/v2/formatJobSearchResult"
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders })
@@ -24,8 +25,9 @@ export async function GET(req: NextRequest) {
       {
         success: true,
         data,
+        reply: formatJobSearchReply(q, data),
         meta: { q, count: data.length },
-        result: JSON.stringify(data),
+        result: formatJobSearchResult(q, data),
       },
       { headers: corsHeaders }
     )

@@ -20,7 +20,10 @@ function buildJobListReply(data: JobListItem[]) {
     "",
   ]
   data.forEach((job, i) => {
-    lines.push(`${i + 1}. ${formatJobDisplayLine(job)} | company=${job.company}`)
+    // User-facing line: position_name + location ONLY.
+    // Never leak internal fields like company= here — that lives in
+    // RAW_JOB_LIST below, for jobs_detail params, not for display.
+    lines.push(`${i + 1}. ${formatJobDisplayLine(job)}`)
   })
   lines.push("")
   lines.push("สนใจตำแหน่งไหนเป็นพิเศษไหมคะ?")
