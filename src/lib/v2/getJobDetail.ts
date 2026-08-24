@@ -276,7 +276,7 @@ export async function resolveSheetTitle(
   return best.title
 }
 
-export async function getJobDetail(
+async function getJobDetailUncached(
   sheets: sheets_v4.Sheets,
   positionName: string,
   company = ""
@@ -308,7 +308,42 @@ export async function getJobDetail(
       company: resolved.company,
       detail: parseDetailRows((detail.data.values || []) as string[][]),
     }
-  } catch {
+  } catch (error) {
+    // Log so a transient Sheets API/quota error is diagnosable in server logs,
+    // instead of silently looking identical to "position genuinely not found".
+    console.error("getJobDetail: failed to fetch/parse sheet detail:", error)
     return null
   }
+}
+
+/**
+ * Short-lived cache so the same position fetched repeatedly within a few
+ * seconds (e.g. the chat re-calling jobs_detail for "เพิ่มเติม"/salary/a
+ * single field right after the initial view, because the tool-calling
+ * platform doesn't retain earlier tool-call fields across turns) doesn't
+ * re-hit the Google Sheets API and risk the per-minute read quota.
+ * Only successful lookups are cached — a `null` (not found / transient
+ * error) is never cached, so it's retried on the very next call.
+ */
+const DETAIL_CACHE_TTL_MS = 60_000
+const detailCache = new Map<string, { data: JobDetail; expires: number }>()
+
+function detailCacheKey(positionName: string, company: string) {
+  return `${normalizeName(positionName)}|${normalizeName(company)}`
+}
+
+export async function getJobDetail(
+  sheets: sheets_v4.Sheets,
+  positionName: string,
+  company = ""
+): Promise<JobDetail | null> {
+  const key = detailCacheKey(positionName, company)
+  const cached = detailCache.get(key)
+  if (cached && cached.expires > Date.now()) return cached.data
+
+  const data = await getJobDetailUncached(sheets, positionName, company)
+  if (data) {
+    detailCache.set(key, { data, expires: Date.now() + DETAIL_CACHE_TTL_MS })
+  }
+  return data
 }
