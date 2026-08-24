@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSheetsClient } from "@/src/lib/createSheetsClient"
 import { corsHeaders } from "@/src/lib/v2/constants"
-import { formatJobDetailResult, formatJobDetailReply } from "@/src/lib/v2/formatJobDetailResult"
+import {
+  formatJobDetailResult,
+  formatJobDetailReply,
+  formatJobDetailFullReply,
+  formatJobDetailSalaryReply,
+} from "@/src/lib/v2/formatJobDetailResult"
 import { getJobDetail, cleanPositionQuery } from "@/src/lib/v2/getJobDetail"
 
 export async function OPTIONS() {
@@ -55,6 +60,8 @@ export async function GET(req: NextRequest) {
         success: true,
         data,
         reply: formatJobDetailReply(data),
+        reply_full: formatJobDetailFullReply(data),
+        reply_salary: formatJobDetailSalaryReply(data),
         result: formatJobDetailResult(data),
       },
       { headers: corsHeaders }

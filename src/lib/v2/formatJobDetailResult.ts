@@ -55,21 +55,40 @@ function firstLines(value: string, maxLines: number) {
     .join("\n")
 }
 
+/**
+ * The Google Sheet's real column-B headers sometimes carry extra trailing
+ * text our short field-name constants intentionally omit, e.g.
+ * "ระยะเวลาสัญญา" (code) vs "ระยะเวลาสัญญา (ถ้ามี)" (sheet), or
+ * "สวัสดิการตัวเงิน" vs "สวัสดิการตัวเงิน (รายตำแหน่งนี้)". An exact-key
+ * lookup misses these and lets the value fall through to the raw-header
+ * dump in fullBullets() instead of its intended short label. Match by
+ * exact key first, then by prefix, so minor header wording differences
+ * don't cause a field to display under the wrong label (or twice).
+ */
+function findDetailKey(detail: Record<string, string>, wanted: string): string | null {
+  if (detail[wanted]?.trim()) return wanted
+  const w = wanted.normalize("NFKC").trim()
+  for (const k of Object.keys(detail)) {
+    if (detail[k]?.trim() && k.normalize("NFKC").trim().startsWith(w)) return k
+  }
+  return null
+}
+
 function pick(detail: Record<string, string>, keys: string[]) {
-  const used = new Set<string>()
+  const matchedKeys = new Set<string>()
   const bullets: string[] = []
   for (const key of keys) {
-    const value = detail[key]?.trim()
-    if (!value || used.has(key)) continue
-    used.add(key)
-    bullets.push(`- ${key}: ${value}`)
+    const actualKey = findDetailKey(detail, key)
+    if (!actualKey || matchedKeys.has(actualKey)) continue
+    matchedKeys.add(actualKey)
+    bullets.push(`- ${key}: ${detail[actualKey].trim()}`)
   }
-  return bullets
+  return { bullets, matchedKeys }
 }
 
 /** Tier 1 — summary bullets only (no salary, no unlisted extra fields). */
 function summaryBullets(detail: Record<string, string>): string[] {
-  const bullets = pick(detail, SUMMARY_FIELD_ORDER)
+  const { bullets } = pick(detail, SUMMARY_FIELD_ORDER)
 
   const dutyKey = MAIN_DUTY_KEYS.find((k) => detail[k]?.trim())
   if (dutyKey) {
@@ -85,18 +104,19 @@ function summaryBullets(detail: Record<string, string>): string[] {
  * (never in the summary), so nothing new ever leaks into tier 1.
  */
 function fullBullets(detail: Record<string, string>): string[] {
-  const shownInSummary = new Set([
-    ...SUMMARY_FIELD_ORDER,
-    ...MAIN_DUTY_KEYS,
-  ])
+  const { matchedKeys: usedBySummary } = pick(detail, SUMMARY_FIELD_ORDER)
+  const summaryDutyKey = MAIN_DUTY_KEYS.find((k) => detail[k]?.trim())
+  const { matchedKeys: usedBySalary } = pick(detail, SALARY_FIELDS)
 
-  const bullets = pick(detail, FULL_FIELD_ORDER)
-  const used = new Set(FULL_FIELD_ORDER)
+  const { bullets, matchedKeys: usedByFull } = pick(detail, FULL_FIELD_ORDER)
 
   for (const [key, value] of Object.entries(detail)) {
-    if (used.has(key) || shownInSummary.has(key) || SALARY_FIELDS.includes(key)) continue
+    if (usedByFull.has(key)) continue
+    if (usedBySummary.has(key)) continue
+    if (summaryDutyKey && key === summaryDutyKey) continue
+    if (usedBySalary.has(key)) continue
     if (!value?.trim()) continue
-    used.add(key)
+    usedByFull.add(key)
     bullets.push(`- ${key}: ${value.trim()}`)
   }
 
@@ -104,7 +124,7 @@ function fullBullets(detail: Record<string, string>): string[] {
 }
 
 function salaryBullets(detail: Record<string, string>): string[] {
-  return pick(detail, SALARY_FIELDS)
+  return pick(detail, SALARY_FIELDS).bullets
 }
 
 function buildSummaryReply(positionName: string, bullets: string[]) {

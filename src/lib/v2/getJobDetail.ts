@@ -141,6 +141,16 @@ export function isStrongTitleMatch(wanted: string, title: string) {
   return scoreTitleMatch(wanted, title) >= 95
 }
 
+/**
+ * Same as normalizeName, but also drops the space between Thai text and a
+ * trailing digit (e.g. "พระราม 9" -> "พระราม9"), so location names typed
+ * without a space still match the sheet's spaced value, and vice versa.
+ * Only used as a comparison key here — never for display.
+ */
+function normalizeLocationKey(s: string) {
+  return normalizeName(s).replace(/\s+(?=\d)/g, "")
+}
+
 function scoreLocationMatch(wanted: string, item: JobListItem): number {
   const w = normalizeName(wanted)
   const loc = normalizeName(item.location || "")
@@ -151,6 +161,17 @@ function scoreLocationMatch(wanted: string, item: JobListItem): number {
   if (loc && loc.length >= 4 && w.includes(loc)) return 92
   if (loc && loc.length >= 4 && loc.includes(w)) return 90
   if (name.endsWith(w) && w.length >= 4) return 88
+
+  // Fallback: retry with the space-before-digit boundary normalized away.
+  const wKey = normalizeLocationKey(wanted)
+  const locKey = normalizeLocationKey(item.location || "")
+  const nameKey = normalizeLocationKey(item.position_name)
+  if (wKey) {
+    if (locKey && locKey === wKey) return 96
+    if (locKey && locKey.length >= 4 && wKey.includes(locKey)) return 90
+    if (locKey && locKey.length >= 4 && locKey.includes(wKey)) return 88
+    if (nameKey.endsWith(wKey) && wKey.length >= 4) return 86
+  }
   return 0
 }
 
