@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:v2": "next dev -p 3001",
+    "ngrok:v2": "ngrok http 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
