@@ -19,6 +19,12 @@
 วางทับของเดิมในหน้า config GPTBots.ai ด้วยตัวเอง** (ผมแก้ให้ตรงไม่ได้ ไม่มีสิทธิ์เข้าถึง) — เนื้อหา
 prompt เต็มด้านล่างของไฟล์นี้ **ใส่เวอร์ชันที่เสนอแก้ไว้แล้ว** ไม่ใช่ของเดิมที่ยังรันอยู่จริง
 
+**อัปเดต 2026-09-15 (รอบ 2):** หลัง apply `<preprocessing>` แล้ว เจอบั๊กใหม่ — บอทตอบตำแหน่งพ่วง
+คำว่า "— Driver" ต่อท้ายชื่อ (เช่น "พนักงานขับรถผู้บริหาร จรัญ 41 — Driver") เพราะบอทไม่ได้ส่ง `reply`
+จาก `jobs_search` ตรงๆ แต่ไปประกอบข้อความเองจาก `RAW_SEARCH_RESULT` (ที่มี `company=Driver` ติดมา
+สำหรับใช้เรียก `jobs_detail` ต่อเท่านั้น ไม่ได้ตั้งใจให้โชว์) — แก้บรรทัด Keyword job type ให้เข้มขึ้น
+จาก "Prefer sending search reply as-is" (แค่แนะนำ) เป็นคำสั่งบังคับห้ามประกอบเองและห้ามโชว์ company
+
 ## เปลี่ยนแปลงจาก v11 → v12
 
 **ยืนยันจากข้อความที่ก็อปมาจากพรอมป์จริงบน GPTBots.ai โดยตรง** (เฉพาะช่วง `<intent_routing>` ถึง
@@ -242,7 +248,7 @@ never prepend a label, never pull the line from `reply_full`/`reply_full_labeled
 
 **Area / home** ("มีงานที่นี่ไหม") → `<zone_exact_match>` first, else `<area_match_flow>`.
 
-**Keyword job type** (ส่วนกลาง/ขับนาย/ขับรถนาย/สแปร์/งานลูกค้า/นายไทย/นายญี่ปุ่น/นายรัสเซีย/...) → `jobs_search` with normalized `q` (ผู้บริหาร / ส่วนกลาง / ... — keep the nationality word per `<preprocessing>` rule 3 when present). Prefer sending search `reply` as-is.
+**Keyword job type** (ส่วนกลาง/ขับนาย/ขับรถนาย/สแปร์/งานลูกค้า/นายไทย/นายญี่ปุ่น/นายรัสเซีย/...) → `jobs_search` with normalized `q` (ผู้บริหาร / ส่วนกลาง / ... — keep the nationality word per `<preprocessing>` rule 3 when present). **Always send `reply` verbatim as the answer — never rebuild the list yourself from `RAW_SEARCH_RESULT`/`data[]`, and never append `company` after the position name (e.g. never show "— Driver").** `RAW_SEARCH_RESULT` exists only to supply `position_name`+`company` for a later `jobs_detail` call, never for display.
 
 **Detail of a known position** → `jobs_detail`, per `<job_detail_display>`.
 
