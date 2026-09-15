@@ -16,25 +16,47 @@ const MAIN_DUTY_KEYS = [
   "ลักษณะงาน",
 ]
 
+/**
+ * Tier-2 fields split into labeled sections so a candidate reading the
+ * "เพิ่มเติม" reply can tell คุณสมบัติ (what's required of them) apart from
+ * สวัสดิการ (what they get) instead of one undifferentiated bullet dump.
+ *
+ * The group tag lives right next to each key (instead of in a second,
+ * separately-typed list of the same Thai strings) on purpose: Thai "ำ" has
+ * two byte-different but visually identical encodings (precomposed U+0E33
+ * vs NIKHAHIT+SARA AA U+0E4D U+0E32), which `.normalize("NFKC")` does NOT
+ * unify — retyping the same-looking string twice silently produced a
+ * mismatch once already (fields fell into the wrong section with no error).
+ * One canonical copy of each key removes that whole class of bug.
+ */
+type FieldGroup = "qualification" | "other" | "benefit"
+
 // Tier 2 — only shown after user asks for "เพิ่มเติม" (WANTS MORE).
-const FULL_FIELD_ORDER = [
-  "วุฒิการศึกษาขั้นต่ำ",
-  "ประสบการณ์ขั้นต่ำ (จำนวนปี)",
-  "ประสบการณ์ในการทำงาน",
-  "ประสบการณ์เฉพาะด้านที่จำเป็น",
-  "คุณสมบัติ",
-  "คุณสมบัติเพิ่มเติมที่ต้องการ",
-  "ทักษะด้านเทคนิค / Hard Skills",
-  "Soft Skills ที่จำเป็นสำหรับตำแหน่งนี้",
-  "ขอบเขตการตัดสินใจของตำแหน่งนี้",
-  "ปัญหาหรือความท้าทายหลัก",
-  "สวัสดิการ",
-  "สวัสดิการตัวเงิน",
-  "สิทธิประโยชน์ที่ไม่ใช่ตัวเงิน",
-  "นายจ้าง / รูปแบบการจ้าง",
-  "รถที่ใช้",
-  "เอกสารที่ต้องใช้",
+const FULL_FIELD_ORDER: Array<{ key: string; group: FieldGroup }> = [
+  { key: "วุฒิการศึกษาขั้นต่ำ", group: "qualification" },
+  { key: "ประสบการณ์ขั้นต่ำ (จำนวนปี)", group: "qualification" },
+  { key: "ประสบการณ์ในการทำงาน", group: "qualification" },
+  { key: "ประสบการณ์เฉพาะด้านที่จำเป็น", group: "qualification" },
+  { key: "คุณสมบัติ", group: "qualification" },
+  { key: "คุณสมบัติเพิ่มเติมที่ต้องการ", group: "qualification" },
+  { key: "ทักษะด้านเทคนิค / Hard Skills", group: "qualification" },
+  { key: "Soft Skills ที่จำเป็นสำหรับตำแหน่งนี้", group: "qualification" },
+  { key: "ขอบเขตการตัดสินใจของตำแหน่งนี้", group: "other" },
+  { key: "ปัญหาหรือความท้าทายหลัก", group: "other" },
+  { key: "สวัสดิการ", group: "benefit" },
+  { key: "สวัสดิการตัวเงิน", group: "benefit" },
+  { key: "สิทธิประโยชน์ที่ไม่ใช่ตัวเงิน", group: "benefit" },
+  { key: "นายจ้าง / รูปแบบการจ้าง", group: "other" },
+  { key: "รถที่ใช้", group: "other" },
+  { key: "เอกสารที่ต้องใช้", group: "other" },
 ]
+
+const GROUP_HEADERS: Record<FieldGroup, string> = {
+  qualification: "คุณสมบัติที่ต้องการ",
+  other: "รายละเอียดงานเพิ่มเติม",
+  benefit: "สวัสดิการ",
+}
+const GROUP_ORDER: FieldGroup[] = ["qualification", "other", "benefit"]
 
 const SALARY_FIELDS = [
   "ช่วงเงินเดือน (Min – Max)",
@@ -185,36 +207,38 @@ function summaryBullets(detail: Record<string, string>): string[] {
   return bullets
 }
 
+type GroupedFields = Record<FieldGroup, { labeled: string[]; valuesOnly: string[] }>
+
 /**
- * Tier 2 — candidate-facing remaining fields only.
+ * Tier 2 — candidate-facing remaining fields only, split by group.
  * Admin meta + salary stay out of this reply.
  * Returns both labeled (B:C for bot) and value-only (C for user reply).
  */
-function collectFullFields(detail: Record<string, string>): {
-  labeled: string[]
-  valuesOnly: string[]
-} {
+function collectFullFields(detail: Record<string, string>): GroupedFields {
   const { matchedKeys: usedBySummary } = pick(detail, SUMMARY_FIELD_ORDER)
   const summaryDutyKey = MAIN_DUTY_KEYS.find((k) => !isEmptyValue(detail[k]))
   const { matchedKeys: usedBySalary } = pick(detail, SALARY_FIELDS)
 
-  const labeled: string[] = []
-  const valuesOnly: string[] = []
+  const groups: GroupedFields = {
+    qualification: { labeled: [], valuesOnly: [] },
+    other: { labeled: [], valuesOnly: [] },
+    benefit: { labeled: [], valuesOnly: [] },
+  }
   const used = new Set<string>()
 
-  const add = (label: string, raw: string) => {
-    const labeledBullet = formatFieldBullet(label, raw)
+  const add = (key: string, raw: string, group: FieldGroup) => {
+    const labeledBullet = formatFieldBullet(key, raw)
     const valueBlock = formatValueOnly(raw)
     if (!labeledBullet || !valueBlock) return
-    labeled.push(labeledBullet)
-    valuesOnly.push(valueBlock)
+    groups[group].labeled.push(labeledBullet)
+    groups[group].valuesOnly.push(valueBlock)
   }
 
-  for (const key of FULL_FIELD_ORDER) {
+  for (const { key, group } of FULL_FIELD_ORDER) {
     const actualKey = findDetailKey(detail, key)
     if (!actualKey || used.has(actualKey)) continue
     used.add(actualKey)
-    add(key, detail[actualKey])
+    add(key, detail[actualKey], group)
   }
 
   for (const [key, value] of Object.entries(detail)) {
@@ -228,10 +252,25 @@ function collectFullFields(detail: Record<string, string>): {
     if (MAIN_DUTY_KEYS.some((k) => key.startsWith(k) || k.startsWith(key))) continue
     if (isEmptyValue(value)) continue
     used.add(key)
-    add(key, value)
+    // Leftover sheet field not in FULL_FIELD_ORDER at all — an unexpected
+    // extra column, so default to "other" rather than guess via string
+    // matching.
+    add(key, value, "other")
   }
 
-  return { labeled, valuesOnly }
+  return groups
+}
+
+/** Flatten grouped fields into one block with a header per non-empty group. */
+function flattenGroups(groups: GroupedFields, variant: "labeled" | "valuesOnly"): string[] {
+  const blocks: string[] = []
+  for (const group of GROUP_ORDER) {
+    const items = groups[group][variant]
+    if (items.length === 0) continue
+    if (blocks.length > 0) blocks.push("")
+    blocks.push(`${GROUP_HEADERS[group]}:`, ...items)
+  }
+  return blocks
 }
 
 /** Column C only — no B label. Multiline → bullet lines. */
@@ -245,11 +284,11 @@ function formatValueOnly(raw: string): string | null {
 }
 
 function fullBullets(detail: Record<string, string>): string[] {
-  return collectFullFields(detail).labeled
+  return flattenGroups(collectFullFields(detail), "labeled")
 }
 
 function fullValueBlocks(detail: Record<string, string>): string[] {
-  return collectFullFields(detail).valuesOnly
+  return flattenGroups(collectFullFields(detail), "valuesOnly")
 }
 
 function salaryBullets(detail: Record<string, string>): string[] {
@@ -393,7 +432,7 @@ export function buildFieldValues(data: JobDetail): Record<string, string> {
   const dutyKey = MAIN_DUTY_KEYS.find((k) => !isEmptyValue(detail[k]))
   if (dutyKey) put("หน้าที่หลัก", detail[dutyKey])
 
-  for (const label of FULL_FIELD_ORDER) {
+  for (const { key: label } of FULL_FIELD_ORDER) {
     const key = findDetailKey(detail, label)
     if (key) put(label, detail[key])
   }
