@@ -62,6 +62,23 @@ const HIDDEN_FIELDS = [
   "รูปแบบการทำงาน",
 ]
 
+/**
+ * Fields kept answerable via field_values (single-field `field=` queries,
+ * e.g. "นายชาติอะไร" → "ไทย") but skipped from the generic tier-2 "extra
+ * details" dump — that dump strips labels (value-only, see formatValueOnly),
+ * and a bare value like "ไทย" with no label reads as a meaningless floating
+ * bullet to a candidate. Answered with proper context only when asked
+ * directly instead.
+ */
+const SKIP_IN_FULL_DUMP = ["สัญชาติของนาย/ผู้บริหารที่ต้องดูแล"]
+
+function isSkippedInFullDump(key: string): boolean {
+  const k = key.normalize("NFKC").trim()
+  return SKIP_IN_FULL_DUMP.some(
+    (s) => k === s || k.startsWith(s.normalize("NFKC").trim())
+  )
+}
+
 function isEmptyValue(value: string | undefined | null): boolean {
   if (!value) return true
   const v = value.normalize("NFKC").trim()
@@ -207,6 +224,7 @@ function collectFullFields(detail: Record<string, string>): {
     if (usedBySalary.has(key)) continue
     if (isSalaryField(key)) continue
     if (isHiddenField(key)) continue
+    if (isSkippedInFullDump(key)) continue
     if (MAIN_DUTY_KEYS.some((k) => key.startsWith(k) || k.startsWith(key))) continue
     if (isEmptyValue(value)) continue
     used.add(key)

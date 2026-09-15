@@ -56,6 +56,38 @@ export function expandSearchQuery(query: string): string[] {
   return [...terms]
 }
 
+/**
+ * Nationality of the "นาย"/ผู้บริหาร a position serves, when the user asks
+ * for one specifically (e.g. "นายคนไทย", "นายญี่ปุ่น"). Tagged in the sheet
+ * as a "ชาว<nationality>" suffix on position_name — same convention already
+ * used for "พนักงานขับรถผู้บริหารชาวฝรั่งเศส" / "...ชาวรัสเซีย".
+ *
+ * When present, this must be a hard (AND) filter on top of the normal
+ * OR-style term scoring below — otherwise a query like "นายคนไทย" still
+ * expands to the generic "ผู้บริหาร" synonym bucket and matches executive
+ * positions of every nationality, since scoring takes the max across terms.
+ */
+const NATIONALITY_TERMS = [
+  "ไทย",
+  "ญี่ปุ่น",
+  "จีน",
+  "เกาหลี",
+  "ฝรั่งเศส",
+  "รัสเซีย",
+  "อเมริกัน",
+  "อังกฤษ",
+  "อินเดีย",
+  "เยอรมัน",
+]
+
+function extractNationality(query: string): string | null {
+  const raw = query.normalize("NFKC")
+  for (const term of NATIONALITY_TERMS) {
+    if (raw.includes(term)) return term
+  }
+  return null
+}
+
 function scoreAgainst(name: string, company: string, q: string): number {
   if (!q) return 0
   if (name === q) return 1
@@ -72,6 +104,7 @@ export async function searchJobs(
   if (terms.length === 0) return []
 
   const normalizedTerms = terms.map(normalize).filter(Boolean)
+  const nationality = extractNationality(query)
   const openPositions = await getOpenPositionRows(sheets)
 
   return openPositions
@@ -84,5 +117,6 @@ export async function searchJobs(
       return { position_name, company, score }
     })
     .filter((item) => item.score > 0)
+    .filter((item) => !nationality || normalize(item.position_name).includes(normalize(nationality)))
     .sort((a, b) => b.score - a.score)
 }
