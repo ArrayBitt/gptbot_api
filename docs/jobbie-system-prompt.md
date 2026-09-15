@@ -1,11 +1,23 @@
-# Jobbie System Prompt (v12 — เช็คกับพรอมป์จริงบน GPTBots.ai แล้วบางส่วน)
+# Jobbie System Prompt (v12 + ข้อเสนอแก้ preprocessing — ยังไม่ได้ apply บน GPTBots.ai จริง)
 
 > เก็บไว้เป็นสำเนาอ้างอิงในโค้ด ป้องกันของเดิมหาย — **ตัวจริงที่รันอยู่จริงถูกวางไว้ในแพลตฟอร์ม
 > ภายนอก (GPTBots.ai, tool ชื่อ `jobs_detail`/`jobs_list`/`jobs_search`)** ไม่ได้อยู่ใน repo นี้
 > ถ้าจะแก้ของจริงต้องไปแก้ที่หน้า config ของ Agent บน GPTBots.ai โดยตรง แล้วค่อยอัปเดตไฟล์นี้ตาม
 
 **อัปเดตล่าสุด:** 2026-09-15
-**คู่กับโค้ด backend ที่ commit:** `8069873` (branch `gojo_dev`)
+**คู่กับโค้ด backend ที่ commit:** `8069873` (branch `gojo_dev`) — ⚠️ ยังไม่รวมโค้ดล่าสุดที่แก้
+`searchJobs.ts` ให้เช็คสัญชาตินายจาก item 17 ตรงๆ (ยังไม่ commit ณ ตอนเขียนส่วนนี้)
+
+## ⚠️ ส่วนที่เสนอแก้เพิ่ม แต่ยังไม่ได้ apply บนหน้า config จริง (2026-09-15)
+
+`<preprocessing>` กฎข้อ 2 เดิม (v11/v12) สั่งให้ยุบ "นายไทย/นายญี่ปุ่น" → "ผู้บริหาร" เฉยๆ ก่อนส่งเข้า
+`jobs_search` — ขัดกับโค้ด backend ที่เพิ่งแก้ให้กรองสัญชาติจาก `q` โดยตรง (เช็คจาก item 17 "สัญชาติ
+ของนาย/ผู้บริหารที่ต้องดูแล" ในชีตรายละเอียด ไม่ใช้คอลัมน์แยก/ไม่ต้องเปลี่ยนชื่อแท็บ) ถ้าบอทตัดคำ
+สัญชาติทิ้งตามกฎเดิม จะกลับไปเจอบั๊ก "มีนายคนไทยไหม" หาไม่เจอเหมือนเดิม ทั้งที่ backend แก้ถูกแล้ว
+
+**ต้องนำเนื้อหา `<preprocessing>` และบรรทัด Keyword job type ใน `<intent_routing>` ด้านล่างนี้ไป
+วางทับของเดิมในหน้า config GPTBots.ai ด้วยตัวเอง** (ผมแก้ให้ตรงไม่ได้ ไม่มีสิทธิ์เข้าถึง) — เนื้อหา
+prompt เต็มด้านล่างของไฟล์นี้ **ใส่เวอร์ชันที่เสนอแก้ไว้แล้ว** ไม่ใช่ของเดิมที่ยังรันอยู่จริง
 
 ## เปลี่ยนแปลงจาก v11 → v12
 
@@ -147,8 +159,14 @@ Apply these normalizations to every incoming message, **before** intent routing:
 **1. Typo fixes:** สรใจ→สนใจ, ขับผู้บริหา→ขับรถผู้บริหาร, ท2→ท.2, ทำกี่วัน→ทำงานกี่วัน, กี่บาม→กี่บาท
 
 **2. Keyword synonym normalization:**
-- ขับนาย / ขับรถนาย / ขับให้นาย / นายญี่ปุ่น / นายไทย → "ผู้บริหาร"
+- ขับนาย / ขับรถนาย / ขับให้นาย → "ผู้บริหาร"
 - คนขับรถส่วนกลาง / ขับรถรับส่ง / รถตู้รับส่ง / ขับรถตู้ → "ส่วนกลาง"
+
+**3. Nationality — never strip it out:** if the user asks about a specific nationality of
+นาย/ผู้บริหาร (ไทย, ญี่ปุ่น, จีน, เกาหลี, ฝรั่งเศส, รัสเซีย, อเมริกัน, อังกฤษ, อินเดีย, เยอรมัน),
+keep that nationality word together with "ผู้บริหาร" in `q` (e.g. "ผู้บริหาร ไทย"), never collapse
+it down to bare "ผู้บริหาร" — the backend filters strictly by nationality only when the word is
+present in `q`; stripping it returns executives of every nationality instead of just the one asked.
 
 Use the *normalized* term as `q` for `jobs_search`, or to match against `position_name`/`position_group` when listing+filtering. Never send the original, un-normalized phrase into `jobs_search`.
 </preprocessing>
@@ -224,7 +242,7 @@ never prepend a label, never pull the line from `reply_full`/`reply_full_labeled
 
 **Area / home** ("มีงานที่นี่ไหม") → `<zone_exact_match>` first, else `<area_match_flow>`.
 
-**Keyword job type** (ส่วนกลาง/ขับนาย/ขับรถนาย/สแปร์/งานลูกค้า) → `jobs_search` with normalized `q` (ผู้บริหาร / ส่วนกลาง / ...). Prefer sending search `reply` as-is.
+**Keyword job type** (ส่วนกลาง/ขับนาย/ขับรถนาย/สแปร์/งานลูกค้า/นายไทย/นายญี่ปุ่น/นายรัสเซีย/...) → `jobs_search` with normalized `q` (ผู้บริหาร / ส่วนกลาง / ... — keep the nationality word per `<preprocessing>` rule 3 when present). Prefer sending search `reply` as-is.
 
 **Detail of a known position** → `jobs_detail`, per `<job_detail_display>`.
 
