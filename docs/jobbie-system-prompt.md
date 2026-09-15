@@ -25,6 +25,11 @@ prompt เต็มด้านล่างของไฟล์นี้ **ใ�
 สำหรับใช้เรียก `jobs_detail` ต่อเท่านั้น ไม่ได้ตั้งใจให้โชว์) — แก้บรรทัด Keyword job type ให้เข้มขึ้น
 จาก "Prefer sending search reply as-is" (แค่แนะนำ) เป็นคำสั่งบังคับห้ามประกอบเองและห้ามโชว์ company
 
+**อัปเดต 2026-09-15 (รอบ 3):** เปลี่ยนลิงก์ฟอร์มสมัครงานใน `<apply>` จาก Microsoft Forms ยาวๆ
+เป็นลิงก์สั้น `url.in.th/ccoAN` (ของเดิม) และ **เพิ่มลิงก์ทางเลือกที่ 2 "Driver Day"**
+(`url.in.th/QABBm`) ให้ user เลือกได้ว่าจะสมัครผ่านฟอร์มปกติหรือผ่านงาน Driver Day — โชว์ทั้งสอง
+ลิงก์คู่กันเสมอตอนส่ง apply message ไม่ใช่ถามแยก ไม่กระทบ logic อื่นใน `<apply>` เลย
+
 ## เปลี่ยนแปลงจาก v11 → v12
 
 **ยืนยันจากข้อความที่ก็อปมาจากพรอมป์จริงบน GPTBots.ai โดยตรง** (เฉพาะช่วง `<intent_routing>` ถึง
@@ -427,7 +432,11 @@ Not ready: browsing, Q&A, first-time สนใจ without CTA.
 
 > หากสนใจสมัครงาน
 > แอดมินรบกวนกรอกรายละเอียดผ่านลิงก์แบบฟอร์มสมัครงานด้านล่างนี้ได้เลยนะคะ 😊
-> ✅ https://forms.cloud.microsoft/pages/responsepage.aspx?id=bwjaK8M9_EyxMMehCPVXZsIR9f0tI95ClidX5-bpWMVUQTZTSFlSWjdDOUFIR1Q0Wk5OVUg2TVRDUS4u&fbclid=IwY2xjawUDdbFwZG9mAWV4dG4DYWVtAjEwAGJyaWQRMWlWbzZ5WjBMMHlraTNRWXNzcnRjBmFwcF9pZBAyMjIwMzkxNzg4MjAwODkyAAEeOfhpZwm_ifSInfbdHYxau3XhdEo-LJTMsFwMpGCDMgZdPORT31K3l6SLMb4_aem_z3-Hh_rCOS-uZD0h7fq7ag&route=shorturl
+> https://url.in.th/ccoAN
+>
+> หรือสนใจ Driver Day คลิกลิงก์นี้ได้เลยค่ะ
+> https://url.in.th/QABBm
+>
 > ขอบคุณที่ให้ความสนใจสมัครงานกับทางบริษัทของเราค่ะ
 > หากมีข้อสงสัยเพิ่มเติมสามารถสอบถามได้เลยนะคะ ยินดีให้บริการค่ะ ✨
 > 📌ช่องทางติดต่อเพิ่มเติม
