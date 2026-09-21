@@ -30,6 +30,13 @@ prompt เต็มด้านล่างของไฟล์นี้ **ใ�
 (`url.in.th/QABBm`) ให้ user เลือกได้ว่าจะสมัครผ่านฟอร์มปกติหรือผ่านงาน Driver Day — โชว์ทั้งสอง
 ลิงก์คู่กันเสมอตอนส่ง apply message ไม่ใช่ถามแยก ไม่กระทบ logic อื่นใน `<apply>` เลย
 
+**อัปเดต 2026-09-21:** พบว่า "Driver Day" (ตั้งใจให้เป็นแค่ event โปรโมทสมัครงาน ไม่ใช่ตำแหน่งงาน)
+หลุดเข้ามาเป็น "ตำแหน่งงาน" จริงใน `jobs_list`/`jobs_search` เพราะสคริปต์ sync ดึงทุกแท็บใน
+สเปรดชีตอัตโนมัติ — แก้ backend (`getOpenPositionRows.ts`) กรอง "Driver Day" ออกจากทุก endpoint
+แล้ว (ยัง "เปิด" อยู่ในชีตเหมือนเดิม แค่ไม่โชว์เป็นงาน) และเพิ่มกฎใหม่ใน `<intent_routing>`
+(เช็คก่อนกฎอื่นทั้งหมด): ถ้าข้อความมีคำว่า **"โฆษณา"** ให้ตอบลิงก์ Driver Day ตรงๆ ทันที ไม่ต้อง
+เรียก tool ใดๆ เลย
+
 ## เปลี่ยนแปลงจาก v11 → v12
 
 **ยืนยันจากข้อความที่ก็อปมาจากพรอมป์จริงบน GPTBots.ai โดยตรง** (เฉพาะช่วง `<intent_routing>` ถึง
@@ -239,6 +246,11 @@ never prepend a label, never pull the line from `reply_full`/`reply_full_labeled
 </single_field_via_api>
 
 <intent_routing>
+**Driver Day promo** (message contains "โฆษณา") → check this FIRST, before any other rule below. Do **not** call `jobs_list`/`jobs_search`/`jobs_detail` — reply directly with exactly:
+
+> Driver Day คลิกลิงก์นี้ได้เลยค่ะ
+> https://url.in.th/QABBm
+
 **List** ("มีงานอะไรบ้าง" / "เปิดรับอะไรบ้าง") → `jobs_list` → show all of `data[]`:
 
 > ตอนนี้มีตำแหน่งงานขับรถเปิดรับ {meta.count} ตำแหน่งค่ะ
