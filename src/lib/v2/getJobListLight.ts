@@ -1,5 +1,5 @@
 import { sheets_v4 } from "googleapis"
-import { getOpenPositionRows } from "./getOpenPositionRows"
+import { getOpenPositionRows, isPromoOnlyPosition } from "./getOpenPositionRows"
 import { getCompanySheetMap } from "./getCompanySheetMap"
 import { resolveSheetTitle } from "./getJobDetail"
 
@@ -62,7 +62,11 @@ export async function getJobListLight(
   options: { withMeta?: boolean } = {}
 ): Promise<JobListItem[]> {
   const withMeta = options.withMeta !== false
-  const openPositions = await getOpenPositionRows(sheets)
+  // Promo-only entries (e.g. "Driver Day") never belong in the browsing
+  // list, open or not — they're offered separately via a keyword trigger.
+  const openPositions = (await getOpenPositionRows(sheets)).filter(
+    (row) => !isPromoOnlyPosition(row.position_name)
+  )
 
   if (!withMeta) {
     return openPositions.map(({ position_name, company }) => ({

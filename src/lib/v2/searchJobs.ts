@@ -1,5 +1,5 @@
 import { sheets_v4 } from "googleapis"
-import { getOpenPositionRows } from "./getOpenPositionRows"
+import { getOpenPositionRows, isPromoOnlyPosition } from "./getOpenPositionRows"
 import { getJobDetail } from "./getJobDetail"
 
 export type JobSearchItem = {
@@ -142,6 +142,8 @@ export async function searchJobs(
   const nationality = extractNationality(query)
   const openPositions = await getOpenPositionRows(sheets)
 
+  const rawQueryNormalized = normalize(query)
+
   const scored = openPositions
     .map(({ position_name, company }) => {
       const name = normalize(position_name)
@@ -152,6 +154,15 @@ export async function searchJobs(
       return { position_name, company, score }
     })
     .filter((item) => item.score > 0)
+    .filter((item) => {
+      if (!isPromoOnlyPosition(item.position_name)) return true
+      // Promo-only entries (e.g. "Driver Day") never surface through a
+      // generic synonym bucket (ผู้บริหาร/ส่วนกลาง/...) — only when the
+      // raw query names them directly. Status (เปิด/ปิด) is still whatever
+      // getOpenPositionRows already filtered by above, so a closed promo
+      // naturally never reaches here at all.
+      return rawQueryNormalized.includes(normalize(item.position_name))
+    })
 
   if (!nationality) {
     return scored.sort((a, b) => b.score - a.score)

@@ -11,16 +11,20 @@ export type OpenPositionRow = {
 /**
  * Sheet tabs the sync script (importPositionsDirect, Apps Script) picks up
  * automatically that aren't real driver positions — e.g. a recruitment
- * event promo tab. Keep them "เปิด" in the sheet (don't touch that data),
- * just never surface them via jobs_list/jobs_search/jobs_detail. The bot
- * offers these separately via a hardcoded reply on a specific keyword
- * (see the system prompt), not through the normal job-listing flow.
+ * event promo tab. These must still respect the sheet's own เปิด/ปิด
+ * status (never invent availability), so they're NOT excluded here at the
+ * source — only from plain browsing (`jobs_list`, generic `jobs_search`
+ * keyword buckets). A caller that searches for one by its exact name
+ * (`isPromoOnlyPosition`) still finds it when open, and finds nothing
+ * when closed, because `getOpenPositionRows` already filters by is_active
+ * below — that's what lets the "โฆษณา" prompt flow check real status via
+ * a normal jobs_search call instead of a status-blind hardcoded reply.
  */
-const EXCLUDED_POSITION_NAMES = ["Driver Day"]
+const PROMO_ONLY_POSITION_NAMES = ["Driver Day"]
 
-function isExcludedPosition(name: string): boolean {
+export function isPromoOnlyPosition(name: string): boolean {
   const n = name.normalize("NFKC").trim().toLowerCase()
-  return EXCLUDED_POSITION_NAMES.some(
+  return PROMO_ONLY_POSITION_NAMES.some(
     (x) => x.normalize("NFKC").trim().toLowerCase() === n
   )
 }
@@ -42,5 +46,4 @@ export async function getOpenPositionRows(
       is_active: String(row[3] || "").trim(),
     }))
     .filter((row) => row.company && row.position_name)
-    .filter((row) => !isExcludedPosition(row.position_name))
 }
