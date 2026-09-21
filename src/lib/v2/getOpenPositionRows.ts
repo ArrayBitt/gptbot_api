@@ -8,6 +8,23 @@ export type OpenPositionRow = {
   is_active: string
 }
 
+/**
+ * Sheet tabs the sync script (importPositionsDirect, Apps Script) picks up
+ * automatically that aren't real driver positions — e.g. a recruitment
+ * event promo tab. Keep them "เปิด" in the sheet (don't touch that data),
+ * just never surface them via jobs_list/jobs_search/jobs_detail. The bot
+ * offers these separately via a hardcoded reply on a specific keyword
+ * (see the system prompt), not through the normal job-listing flow.
+ */
+const EXCLUDED_POSITION_NAMES = ["Driver Day"]
+
+function isExcludedPosition(name: string): boolean {
+  const n = name.normalize("NFKC").trim().toLowerCase()
+  return EXCLUDED_POSITION_NAMES.some(
+    (x) => x.normalize("NFKC").trim().toLowerCase() === n
+  )
+}
+
 export async function getOpenPositionRows(
   sheets: sheets_v4.Sheets
 ): Promise<OpenPositionRow[]> {
@@ -25,4 +42,5 @@ export async function getOpenPositionRows(
       is_active: String(row[3] || "").trim(),
     }))
     .filter((row) => row.company && row.position_name)
+    .filter((row) => !isExcludedPosition(row.position_name))
 }
