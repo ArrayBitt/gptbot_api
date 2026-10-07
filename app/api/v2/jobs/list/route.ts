@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSheetsClient } from "@/src/lib/createSheetsClient"
 import { corsHeaders } from "@/src/lib/v2/constants"
+import { noDataFields } from "@/src/lib/v2/fallbackReply"
 import { formatJobListResult, formatJobListReply, formatZonesReply } from "@/src/lib/v2/formatJobListResult"
 import {
   getJobListLight,
@@ -17,6 +18,22 @@ export async function GET(req: NextRequest) {
     const light = req.nextUrl.searchParams.get("light") === "1"
     const sheets = createSheetsClient()
     const data = await getJobListLight(sheets, { withMeta: !light })
+
+    if (data.length === 0) {
+      const nd = noDataFields("list_empty")
+      return NextResponse.json(
+        {
+          success: true,
+          data,
+          reply_zones: nd.reply_fallback,
+          reply_jobs: nd.reply_fallback,
+          meta: { count: 0, zones: [], zone_count: 0, zone_summary: [] },
+          result: ["COPY_THIS_REPLY (NO_DATA — send as-is):", nd.reply_fallback].join("\n"),
+          ...nd,
+        },
+        { headers: corsHeaders }
+      )
+    }
     const zone_summary = summarizeZones(data)
     const zones = uniqueZones(data)
 

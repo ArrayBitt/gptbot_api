@@ -10,6 +10,7 @@ import {
   buildFieldValues,
   resolveFieldValue,
 } from "@/src/lib/v2/formatJobDetailResult"
+import { noDataFields } from "@/src/lib/v2/fallbackReply"
 import { getJobDetail, cleanPositionQuery } from "@/src/lib/v2/getJobDetail"
 
 export async function OPTIONS() {
@@ -47,15 +48,17 @@ export async function GET(req: NextRequest) {
     const data = await getJobDetail(sheets, positionName, company)
 
     if (!data) {
+      // 200 (not 404): GPTBots may treat non-2xx as a tool error and let the model improvise.
+      const nd = noDataFields("job_not_found")
       return NextResponse.json(
         {
           success: false,
           error: "job not found",
-          result:
-            "ERROR: job not found. Re-call jobs_list. Use exact position_name + company from data[]. Do NOT invent fallback name.",
-          reply: "",
+          reply: nd.reply_fallback,
+          result: ["COPY_THIS_REPLY (NO_DATA — send as-is):", nd.reply_fallback].join("\n"),
+          ...nd,
         },
-        { status: 404, headers: corsHeaders }
+        { headers: corsHeaders }
       )
     }
 
@@ -68,19 +71,20 @@ export async function GET(req: NextRequest) {
     if (field) {
       const matched = resolveFieldValue(field, field_values)
       if (!matched) {
+        const nd = noDataFields("field_missing")
         return NextResponse.json(
           {
             success: true,
             data,
             field,
             field_matched: null,
-            reply: "",
+            reply: nd.reply_fallback,
             reply_full,
             reply_full_labeled,
             reply_salary,
             field_values,
-            result:
-              "FIELD_NOT_FOUND: no matching field_values key. Tell user this section is missing; offer contact 086-329-8865 / Line @jobpro. Do NOT invent.",
+            result: ["COPY_THIS_REPLY (NO_DATA — send as-is):", nd.reply_fallback].join("\n"),
+            ...nd,
           },
           { headers: corsHeaders }
         )
