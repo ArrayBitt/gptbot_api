@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSheetsClient } from "@/src/lib/createSheetsClient"
+import { createSheetsClient } from "@/src/lib/v2/createSheetsClient"
 import { corsHeaders } from "@/src/lib/v2/constants"
 import { noDataFields } from "@/src/lib/v2/fallbackReply"
 import { formatJobListResult, formatJobListReply, formatZonesReply } from "@/src/lib/v2/formatJobListResult"

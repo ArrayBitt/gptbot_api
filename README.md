@@ -29,9 +29,9 @@ API กลางสำหรับบอท **Jobbie** (VR JobPro / Thitaram Gro
 
 ```
 app/api/v2/jobs/{list,search,detail}/route.ts   route บาง ๆ: รับ query → เรียก lib → ประกอบ JSON
-src/lib/createSheetsClient.ts   Google Sheets client (read-only, ใช้ร่วมทุก route)
 src/lib/v2/
   constants.ts            ID ของสเปรดชีต Control Center, CORS
+  createSheetsClient.ts   Google Sheets client (read-only, ใช้ร่วมทุก route)
   getOpenPositionRows.ts  อ่านแท็บ Global_Open_Position (เฉพาะสถานะ "เปิด")
   getCompanySheetMap.ts   แมปบริษัท → สเปรดชีตของบริษัท (แท็บ Company_Config)
   getJobListLight.ts      รายการตำแหน่ง + location/กลุ่ม
@@ -49,7 +49,7 @@ functions/gptbot/              โค้ด Firebase Functions เวอร์�
    `GOOGLE_SERVICE_ACCOUNT` (JSON), `GOOGLE_SERVICE_ACCOUNT_B64` หรือ `GOOGLE_SERVICE_ACCOUNT_PATH`
 2. service account ต้องมีสิทธิ์อ่านสเปรดชีตของ Control Center และของแต่ละบริษัท
 3. `npm install` แล้ว `npm run dev` (หรือ `npm run dev:v2` พอร์ต 3001 + `npm run ngrok:v2`)
-4. ตรวจ: `npx tsc --noEmit` และ `npm run lint`
+4. ตรวจ: `npx tsc --noEmit`, `npm run lint` และ `npm test` (Vitest — ครอบคลุมการจับคู่ชื่อตำแหน่ง, การค้นหา, fallback)
 
 ทดสอบเร็ว ๆ:
 ```
@@ -69,7 +69,7 @@ curl -G "localhost:3000/api/v2/jobs/search" --data-urlencode "q=ขับรถ�
 - **Output Parameters ของ tool ใน GPTBots** ต้องประกาศ field ที่ API ส่ง (`reply`, `no_data`, `fallback_reason`, `reply_fallback` ฯลฯ) ไม่เช่นนั้นโมเดลจะมองไม่เห็น
 - **โครงสร้างชีตคือสัญญา:** ชื่อแท็บ/คอลัมน์ (`Global_Open_Position!A2:D200`, `Company_Config`) ถูกฮาร์ดโค้ด ถ้าแอดมินเปลี่ยนโครงสร้าง API จะคืนผลว่าง
 - **API ยังเปิดสาธารณะ ไม่มี auth** และ CORS เป็น `*`
-- **ไม่มี test อัตโนมัติ** ตรรกะจับคู่ชื่อ (`getJobDetail.ts`, `searchJobs.ts`) ต้องทดสอบด้วยมือหลังแก้
+- **test ครอบคลุมเฉพาะตรรกะหลัก** (`src/lib/v2/__tests__/`: จับคู่ชื่อ, ค้นหา, fallback) ยังไม่มี test ของ route/การจัดรูปแบบ `format*.ts` และไม่ได้ต่อชีตจริง — หลังแก้ต้องทดสอบด้วย `curl` ด้วย
 - ข้อมูลตำแหน่งที่ cache (detail 60 วินาที) อาจเก่าได้ชั่วครู่หลังแอดมินแก้ชีต
 
 ข้อมูลภายใน (ชีต, credential, ข้อมูลผู้สมัคร) เป็นความลับ ห้าม commit ลง git
